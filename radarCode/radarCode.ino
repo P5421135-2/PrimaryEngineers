@@ -10,16 +10,22 @@ const int RadarCentreEcho = 5;
 const int RadarRightTrig = 6;
 const int RadarRightEcho = 7;
 
+const int LeftIndicator = 8;
+const int RightIndicator = 9;
+
 // BLE Service and Characteristics
 BLEService radarService("19B10000-E8F2-537E-4F6C-D104768A1214");
 
 BLEFloatCharacteristic centreCharacteristic("19B10001-E8F2-537E-4F6C-D104768A1214", BLERead | BLENotify);
 BLEFloatCharacteristic leftCharacteristic("19B10002-E8F2-537E-4F6C-D104768A1214", BLERead | BLENotify);
 BLEFloatCharacteristic rightCharacteristic("19B10003-E8F2-537E-4F6C-D104768A1214", BLERead | BLENotify);
+BLEFloatCharacteristic leftIndicatorCharacteristic("19b10004-e8f2-537e-4f6c-d104768a1214", BLERead | BLEWrite);
+BLEFloatCharacteristic rightIndicatorCharacteristic("19b10005-e8f2-537e-4f6c-d104768a1214", BLERead | BLEWrite);
 
 void setup() {
   Serial.begin(9600);
-  while (!Serial);
+  while (!Serial)
+    ;
 
   // Sensor pin modes
   pinMode(RadarLeftTrig, OUTPUT);
@@ -31,10 +37,14 @@ void setup() {
   pinMode(RadarRightTrig, OUTPUT);
   pinMode(RadarRightEcho, INPUT);
 
+  pinMode(LeftIndicator, OUTPUT);
+  pinMode(RightIndicator, OUTPUT);
+
   // BLE setup
   if (!BLE.begin()) {
     Serial.println("Starting BLE failed!");
-    while (1);
+    while (1)
+      ;
   }
 
   BLE.setLocalName("Radar");
@@ -43,6 +53,8 @@ void setup() {
   radarService.addCharacteristic(centreCharacteristic);
   radarService.addCharacteristic(leftCharacteristic);
   radarService.addCharacteristic(rightCharacteristic);
+  radarService.addCharacteristic(leftIndicatorCharacteristic);
+  radarService.addCharacteristic(rightIndicatorCharacteristic);
 
   BLE.addService(radarService);
 
@@ -78,18 +90,47 @@ void loop() {
       float centre = getDistance(RadarCentreTrig, RadarCentreEcho);
       float right = getDistance(RadarRightTrig, RadarRightEcho);
 
-      Serial.print("Left: "); Serial.print(left);
-      Serial.print(" cm | Centre: "); Serial.print(centre);
-      Serial.print(" cm | Right: "); Serial.println(right);
+      Serial.print("Left: ");
+      Serial.print(left);
+      Serial.print(" cm | Centre: ");
+      Serial.print(centre);
+      Serial.print(" cm | Right: ");
+      Serial.println(right);
 
       leftCharacteristic.writeValue(left);
       centreCharacteristic.writeValue(centre);
       rightCharacteristic.writeValue(right);
 
-      delay(500); // Adjust delay as needed
-    }
+      delay(500);  // Adjust delay as needed
 
-    Serial.print("Disconnected from central: ");
-    Serial.println(central.address());
+
+      // if the remote device wrote to the characteristic,
+      // use the value to control the  Left indicator LED:
+      if (leftIndicatorCharacteristic.written()) {
+        if (leftIndicatorCharacteristic.value()) {  // any value other than 0
+          Serial.println("LED on");
+          digitalWrite(LeftIndicator, HIGH);  // will turn the LED on
+        } else {                              // a 0 value
+          Serial.println(F("LED off"));
+          digitalWrite(LeftIndicator, LOW);  // will turn the LED off
+        }
+      }
+
+
+      // if the remote device wrote to the characteristic,
+      // use the value to control the  Right indicator LED:
+      if (rightIndicatorCharacteristic.written()) {
+        if (rightIndicatorCharacteristic.value()) {  // any value other than 0
+          Serial.println("LED on");
+          digitalWrite(RightIndicator, HIGH);  // will turn the LED on
+        } else {                               // a 0 value
+          Serial.println(F("LED off"));
+          digitalWrite(RightIndicator, LOW);  // will turn the LED off
+        }
+      }
+    }
   }
+
+  Serial.print("Disconnected from central: ");
+  Serial.println(central.address());
 }
