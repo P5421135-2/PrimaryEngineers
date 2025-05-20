@@ -1,15 +1,8 @@
 /*
 
-  radar Control
+  The handlebar circuit for the Primary Engineers Project
 
-
-
-  This example scans for Bluetooth® Low Energy peripherals until one with the advertised service
-
-  "19b10000-e8f2-537e-4f6c-d104768a1214" UUID is found. Once discovered and connected,
-
-  it will remotely control the Bluetooth® Low Energy peripheral's radar, when the button is pressed or released.
-
+  The circuit scans for the nano that houses the radar circuit . Once discovered and connected, it will read the data from the ultrasonic sensors and display them on the grove OLED to alert the user how close each car is to them. The two buttons on the circuit control the indicators on the backpack.
 
 
   The circuit:
@@ -18,20 +11,9 @@
 
     Arduino Nano 33 BLE, or Arduino Nano 33 BLE Sense board.
 
-  - Button with pull-up resistor connected to pin 2.
-
-
-
-  You can use it with another board that is compatible with this library and the
-
-  Peripherals -> radar example.
-
-
-
-  This example code is in the public domain.
+  - Two buttons with pull-down resistors connected to pins 11 and 12.
 
 */
-
 
 
 #include <ArduinoBLE.h>
@@ -48,11 +30,9 @@ const int rightButton = 12;
 
 
 
-// OLED Display Pin setup
+// Constructor setup for the grove OLED
 
-U8G2_SH1107_SEEED_128X128_1_SW_I2C u8g2(U8G2_R0, /* clock=*/SCL, /* data=*/SDA, /* reset=*/U8X8_PIN_NONE);
-
-
+U8G2_SH1107_SEEED_128X128_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ SCL, /* data=*/ SDA, /* reset=*/ U8X8_PIN_NONE);
 
 
 
@@ -63,6 +43,8 @@ int rightOldButtonState = LOW;
 void setup() {
 
   u8g2.begin();
+
+u8g2.setCursor(0, 16);
 
   Serial.begin(9600);
 
@@ -267,24 +249,26 @@ Serial.print("Right distance: ");
 Serial.println(right);
 
 
-
+//   Print all values to the OLED
     u8g2.clearBuffer();
 
     u8g2.setFont(u8g2_font_ncenB08_tr);
 
 
 
+
+
     char buf[32];
 
-    sprintf(buf, "Centre: %d cm", centre);
+    sprintf(buf, "Centre: %.2f cm", centre);
 
     u8g2.drawStr(0, 12, buf);
 
-    sprintf(buf, "Left:   %d cm", left);
+    sprintf(buf, "Left:   %.2f cm", left);
 
     u8g2.drawStr(0, 28, buf);
 
-    sprintf(buf, "Right:  %d cm", right);
+    sprintf(buf, "Right:  %.2f cm", right);
 
     u8g2.drawStr(0, 44, buf);
 
@@ -292,7 +276,7 @@ Serial.println(right);
 
 
 
-    delay(500);
+    delay(50);
 
 
 
@@ -300,14 +284,14 @@ Serial.println(right);
 
 
 
-    // read the button pin
+    // read the button pins
 
     int leftButtonState = digitalRead(leftButton);
 
     int rightButtonState = digitalRead(rightButton);
 
 
-
+// Control the indicators when pressed
     if (leftOldButtonState != leftButtonState) {
 
       leftOldButtonState = leftButtonState;
