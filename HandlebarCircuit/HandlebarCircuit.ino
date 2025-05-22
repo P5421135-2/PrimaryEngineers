@@ -32,7 +32,7 @@ const int rightButton = 12;
 
 // Constructor setup for the grove OLED
 
-U8G2_SH1107_SEEED_128X128_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ SCL, /* data=*/ SDA, /* reset=*/ U8X8_PIN_NONE);
+U8G2_SH1107_SEEED_128X128_F_SW_I2C u8g2(U8G2_R0, /* clock=*/SCL, /* data=*/SDA, /* reset=*/U8X8_PIN_NONE);
 
 
 
@@ -44,7 +44,7 @@ void setup() {
 
   u8g2.begin();
 
-u8g2.setCursor(0, 16);
+  u8g2.setCursor(0, 16);
 
   Serial.begin(9600);
 
@@ -73,7 +73,6 @@ u8g2.setCursor(0, 16);
   // start scanning for peripherals
 
   BLE.scanForUuid("19b10000-e8f2-537e-4f6c-d104768a1214");
-
 }
 
 
@@ -109,8 +108,9 @@ void loop() {
     if (peripheral.localName() != "Radar") {
 
       return;
-
     }
+
+
 
 
 
@@ -127,9 +127,7 @@ void loop() {
     // peripheral disconnected, start scanning again
 
     BLE.scanForUuid("19b10000-e8f2-537e-4f6c-d104768a1214");
-
   }
-
 }
 
 
@@ -151,7 +149,6 @@ void controlLed(BLEDevice peripheral) {
     Serial.println("Failed to connect!");
 
     return;
-
   }
 
 
@@ -171,7 +168,6 @@ void controlLed(BLEDevice peripheral) {
     peripheral.disconnect();
 
     return;
-
   }
 
 
@@ -188,6 +184,12 @@ void controlLed(BLEDevice peripheral) {
 
   BLECharacteristic rightIndicatorCharacteristic = peripheral.characteristic("19b10005-e8f2-537e-4f6c-d104768a1214");
 
+  BLECharacteristic closeCharacteristic = peripheral.characteristic("19b10006-e8f2-537e-4f6c-d104768a1214");
+
+  BLECharacteristic mediumCharacteristic = peripheral.characteristic("19b10007-e8f2-537e-4f6c-d104768a1214");
+
+  BLECharacteristic farCharacteristic = peripheral.characteristic("19b10008-e8f2-537e-4f6c-d104768a1214");
+
 
 
 
@@ -199,7 +201,6 @@ void controlLed(BLEDevice peripheral) {
     peripheral.disconnect();
 
     return;
-
   }
 
 
@@ -211,9 +212,16 @@ void controlLed(BLEDevice peripheral) {
     peripheral.disconnect();
 
     return;
-
   }
 
+  if (!closeCharacteristic || !mediumCharacteristic || !farCharacteristic) {
+
+    Serial.println("Warning characteristics missing!");
+
+    peripheral.disconnect();
+
+    return;
+  }
 
 
 
@@ -224,59 +232,99 @@ void controlLed(BLEDevice peripheral) {
 
     // while the peripheral is connected
 
-float centre, left, right;
-
-centreCharacteristic.readValue((byte*)&centre, sizeof(centre));
-
-leftCharacteristic.readValue((byte*)&left, sizeof(left));
-
-rightCharacteristic.readValue((byte*)&right, sizeof(right));
+    float centre, left, right, dangerThreshold, warningThreshold, safeThreshold;
 
 
+    centreCharacteristic.readValue((byte*)&centre, sizeof(centre));
 
-// Print the values to debug
+    leftCharacteristic.readValue((byte*)&left, sizeof(left));
 
-Serial.print("Centre distance: ");
+    rightCharacteristic.readValue((byte*)&right, sizeof(right));
 
-Serial.println(centre);
+    closeCharacteristic.readValue((byte*)&dangerThreshold, sizeof(dangerThreshold));
 
-Serial.print("Left distance: ");
+    mediumCharacteristic.readValue((byte*)& warningThreshold, sizeof(warningThreshold));
 
-Serial.println(left);
-
-Serial.print("Right distance: ");
-
-Serial.println(right);
+    farCharacteristic.readValue((byte*)&safeThreshold, sizeof(safeThreshold));
 
 
-//   Print all values to the OLED
+
+    // Print the values to debug
+
+    Serial.print("Centre distance: ");
+
+    Serial.println(centre);
+
+    Serial.print("Left distance: ");
+
+    Serial.println(left);
+
+    Serial.print("Right distance: ");
+
+    Serial.println(right);
+
+
     u8g2.clearBuffer();
-
-    u8g2.setFont(u8g2_font_ncenB08_tr);
-
-
-
-
+    u8g2.setFont(u8g2_font_ncenB08_tr);  // Or use a smaller font if needed
 
     char buf[32];
 
     sprintf(buf, "Centre: %.2f cm", centre);
-
     u8g2.drawStr(0, 12, buf);
 
     sprintf(buf, "Left:   %.2f cm", left);
-
     u8g2.drawStr(0, 28, buf);
 
     sprintf(buf, "Right:  %.2f cm", right);
-
     u8g2.drawStr(0, 44, buf);
 
+    // Warning logic
+    const char* leftWarning;
+    const char* centreWarning;
+    const char* rightWarning;
+
+    if (left < dangerThreshold) {
+      leftWarning = "!!! LEFTSIDE DANGER !!!";
+    } else if (left < warningThreshold) {
+      leftWarning = "-- WARNING LEFTSIDE --";
+    } else if (left < safeThreshold) {
+      leftWarning = "LEFTSIDE SAFE";
+    } else {
+      leftWarning = "LEFTSIDE CLEAR";
+    }
+
+    if (centre < dangerThreshold) {
+      centreWarning = "!!! CENTRE IN DANGER !!!";
+    } else if (centre < warningThreshold) {
+      centreWarning = "-- WARNING CENTRE --";
+    } else if (centre < safeThreshold) {
+      centreWarning = "CENTRE IS SAFE";
+    } else {
+      centreWarning = "CENTRE IS CLEAR";
+    }
+
+    if (right < dangerThreshold) {
+      rightWarning = "!!! RIGHTSIDE DANGER  !!!";
+    } else if (right < warningThreshold) {
+      rightWarning = "-- WARNING RIGHT --";
+    } else if (right < safeThreshold) {
+      rightWarning = "RIGHTSIDE SAFE";
+    } else {
+      rightWarning = "RIGHTSIDE CLEAR";
+    }
+    u8g2.setCursor(0, 60);
+    u8g2.print(leftWarning);
+    u8g2.setCursor(0, 82);
+    u8g2.print(centreWarning);
+    u8g2.setCursor(0, 97);
+    u8g2.print(rightWarning);
     u8g2.sendBuffer();
 
 
 
-    delay(50);
+
+
+    delayMicroseconds(50);
 
 
 
@@ -291,7 +339,7 @@ Serial.println(right);
     int rightButtonState = digitalRead(rightButton);
 
 
-// Control the indicators when pressed
+    // Control the indicators when pressed
     if (leftOldButtonState != leftButtonState) {
 
       leftOldButtonState = leftButtonState;
@@ -303,9 +351,7 @@ Serial.println(right);
       } else {
 
         leftIndicatorCharacteristic.writeValue((byte)0x00);
-
       }
-
     }
 
 
@@ -321,13 +367,9 @@ Serial.println(right);
       } else {
 
         rightIndicatorCharacteristic.writeValue((byte)0x00);
-
       }
-
     }
-
   }
 
   Serial.println("Peripheral disconnected");
-
 }
