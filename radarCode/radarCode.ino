@@ -34,8 +34,6 @@ BLEFloatCharacteristic farCharacteristic("19B10008-E8F2-537E-4F6C-D104768A1214",
 
 void setup() {
   Serial.begin(9600);
-  while (!Serial)
-    ;
 
   // Sensor pin modes
   pinMode(RadarLeftTrig, OUTPUT);
